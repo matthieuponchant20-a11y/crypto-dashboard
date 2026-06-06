@@ -2,7 +2,8 @@ Flask==3.0.0
 requests==2.31.0
 textblob==0.18.0
 feedparser==6.0.10
-pandas==2.1.4
+pandas==2.2.0
 numpy==1.26.4
+Cython==3.0.0
 ta==0.10.2
 gunicorn==21.2.0
