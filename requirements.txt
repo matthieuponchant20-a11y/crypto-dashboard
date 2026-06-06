@@ -3,7 +3,7 @@ requests==2.31.0
 textblob==0.18.0
 feedparser==6.0.10
 pandas==2.3.3
-numpy==1.26.4
+numpy==1.24.3
 Cython==3.0.0
-ta==0.10.2
+pandas-ta==0.3.14b  # 👈 Version stable avec wheel pour Python 3.14
 gunicorn==21.2.0
