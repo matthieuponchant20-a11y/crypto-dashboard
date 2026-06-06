@@ -1,6 +1,6 @@
 import sqlite3
 import pandas as pd
-from ta.momentum import RSIIndicator
+import pandas_ta as ta  # RSI = ta.rsi(df['close'], length=14)
 from datetime import datetime
 # -*- coding: utf-8 -*-
 import sys
@@ -39,7 +39,7 @@ def calculate_rsi(window=14):
             continue
 
         # Calcule le RSI
-        rsi = RSIIndicator(df["price"], window=window)
+        rsi = ta.rsi(pd.Series(df["price"]), length=14)  # 👈 Même résultat
         df["RSI"] = rsi.rsi()
         last_rsi = df["RSI"].iloc[-1]
         last_timestamp = df["timestamp"].iloc[-1]
