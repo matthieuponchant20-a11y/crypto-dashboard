@@ -1,5 +1,6 @@
 import sqlite3
-import feedparser
+import requests
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 # -*- coding: utf-8 -*-
 import sys
@@ -16,6 +17,23 @@ RSS_FEEDS = [
     {"name": "CoinTelegraph", "url": "https://cointelegraph.com/feed"},
     {"name": "CryptoNews", "url": "https://cryptonews.com/feed"}
 ]
+def parse_rss(url):
+    """Parse un flux RSS sans feedparser (natif Python)."""
+    response = requests.get(url, timeout=10)
+    root = ET.fromstring(response.content)
+    items = []
+    for item in root.findall('.//item'):
+        title = item.find('title').text if item.find('title') is not None else "No title"
+        link = item.find('link').text if item.find('link') is not None else ""
+        pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
+        description = item.find('description').text if item.find('description') is not None else ""
+        items.append({
+            'title': title,
+            'link': link,
+            'pubDate': pub_date,
+            'description': description
+        })
+    return items
 
 def fetch_crypto_news_rss(days=7):
     """Récupère les news via les flux RSS."""
@@ -40,7 +58,7 @@ def fetch_crypto_news_rss(days=7):
     start_date = datetime.now() - timedelta(days=days)
 
     for feed in RSS_FEEDS:
-        parsed_feed = feedparser.parse(feed["url"])
+        parsed_feed = parse_rss(feed["url"])
         for entry in parsed_feed.entries:
             # Vérifie si la news concerne une de nos cryptos
             news_symbols = []

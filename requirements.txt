@@ -1,8 +1,6 @@
 Flask==3.0.0
 requests==2.31.0
 textblob==0.18.0
-sgmllib3k==1.0.0  # 👈 Ajoute cette ligne AVANT feedparser
-feedparser==6.0.10
 pandas==2.3.3
 numpy==2.3.5
 Cython==3.0.0
