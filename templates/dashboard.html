@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Crypto - RSI & Corrélations</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h2 {
+            color: #3498db;
+            margin-top: 0;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .buy { color: #27ae60; font-weight: bold; }
+        .sell { color: #e74c3c; font-weight: bold; }
+        .hold { color: #f39c12; font-weight: bold; }
+        .legend {
+            background: #e8f4fc;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .correlation-high { background-color: #d4edda; }
+        .correlation-medium { background-color: #fff3cd; }
+        .correlation-low { background-color: #f8d7da; }
+
+        /* Style pour les onglets */
+        .tab-container {
+            margin-bottom: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 15px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: #f8f9fa;
+            border: none;
+            border-bottom: 3px solid transparent;
+            margin-right: 5px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .tab-button:hover {
+            background: #e9ecef;
+        }
+        .tab-button.active {
+            background: white;
+            border-bottom: 3px solid #3498db;
+            color: #3498db;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Spinner de chargement */
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Dashboard Crypto - Analyse RSI & Corrélations</h1>
+
+        <!-- Bouton de rafraîchissement (fixe) -->
+        <div style="margin-bottom: 20px; display: flex; justify-content: flex-end;">
+            <button onclick="refreshAll()" style="padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                🔄 Rafraîchir les données
+            </button>
+            <span id="last-refresh" style="margin-left: 10px; font-size: 0.9em; color: #7f8c8d;">
+                Dernier rafraîchissement : jamais
+            </span>
+        </div>
+
+        <!-- Onglets -->
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="switchTab(event, 'dashboard')">📊 Dashboard</button>
+                <button class="tab-button" onclick="switchTab(event, 'info')">ℹ️ Informations</button>
+                <button class="tab-button" onclick="switchTab(event, 'legend')">📚 Légende</button>
+            </div>
+
+            <!-- ========== ONGLET DASHBOARD ========== -->
+            <div id="dashboard" class="tab-content active">
+                <!-- Graphiques -->
+                <div class="card">
+                    <h2>📈 Graphiques d'Analyse</h2>
+                    <div style="margin-bottom: 20px;">
+                        <label for="crypto-select">Sélectionne une crypto :</label>
+                        <select id="crypto-select" onchange="updateCharts()">
+                            <option value="BTC">Bitcoin (BTC)</option>
+                            <option value="ETH">Ethereum (ETH)</option>
+                            <option value="SOL">Solana (SOL)</option>
+                            <option value="AAVE">Aave (AAVE)</option>
+                            <option value="XRP">Ripple (XRP)</option>
+                            <option value="VET">VeChain (VET)</option>
+                        </select>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+                        <div>
+                            <h3>💰 Historique des Prix (7j)</h3>
+                            <canvas id="priceChart" width="400" height="200"></canvas>
+                        </div>
+                        <div>
+                            <h3>📊 Historique du RSI (7j)</h3>
+                            <canvas id="rsiChart" width="400" height="200"></canvas>
+                        </div>
+                        <div>
+                            <h3>🎯 Sentiment des News vs RSI</h3>
+                            <canvas id="sentimentRsiChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prix -->
+                <div class="card">
+                    <h2>💰 Derniers Prix (EUR)</h2>
+                    <table>
+                        <tr>
+                            <th>Crypto</th>
+                            <th>Prix (EUR)</th>
+                            <th>Dernière MAJ</th>
+                        </tr>
+                        {% for symbol, price, timestamp in prices %}
+                        <tr>
+                            <td>{{ symbol }}</td>
+                            <td>{{ "%.6f"|format(price) }} €</td>
+                            <td>{{ timestamp[:16] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+
+                <!-- Top 5 des news les plus impactantes (DÉPLACÉ ICI) -->
+                <div class="card">
+                    <h2>🔥 Top 5 des News les plus Impactantes</h2>
+                    <p><em>Classement des news ayant eu le plus d'impact sur les prix (toutes cryptos confondues).</em></p>
+                    <div id="top-impact-news-container">
+                        <p style="text-align: center; color: #7f8c8d;">Chargement des news...</p>
+                    </div>
+                </div>
+
+                <!-- RSI -->
+                <div class="card">
+                    <h2>📊 Derniers RSI</h2>
+                    <table>
+                        <tr>
+                            <th>Crypto</th>
+                            <th>RSI</th>
+                            <th>Signal</th>
+                        </tr>
+                        {% for symbol, rsi, timestamp in rsi_data %}
+                        <tr>
+                            <td>{{ symbol }}</td>
+                            <td>{{ "%.2f"|format(rsi) }}</td>
+                            <td>
+                                {% if rsi < 30 %}
+                                    <span class="buy">🟢 BUY</span>
+                                {% elif rsi > 70 %}
+                                    <span class="sell">🔴 SELL</span>
+                                {% else %}
+                                    <span class="hold">🟡 HOLD</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========== ONGLET INFORMATIONS ========== -->
+            <div id="info" class="tab-content">
+                <!-- Corrélations avec BTC -->
+                <div class="card">
+                    <h2>🔗 Corrélations avec Bitcoin (BTC) - 7 derniers jours</h2>
+                    <table>
+                        <tr>
+                            <th>Crypto</th>
+                            <th>Corrélation</th>
+                            <th>Influence de BTC</th>
+                        </tr>
+                        {% for symbol1, correlation, timeframe in correlations %}
+                        <tr class="{% if correlation > 0.7 %}correlation-high{% elif correlation > 0.3 %}correlation-medium{% else %}correlation-low{% endif %}">
+                            <td>{{ symbol1 }}</td>
+                            <td>{{ "%.2f"|format(correlation) }}</td>
+                            <td>
+                                {% if correlation > 0.7 %}
+                                    🔥 <strong>Forte</strong> (BTC influence directement)
+                                {% elif correlation > 0.3 %}
+                                    ➖ Modérée
+                                {% else %}
+                                    ❄️ Faible (comportement indépendant)
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+
+                <!-- News + Sentiment -->
+                <div class="card">
+                    <h2>📰 Dernières News & Sentiment</h2>
+                    <p><em>Analyse du sentiment des news pour chaque crypto.</em></p>
+                    <table>
+                        <tr>
+                            <th>Crypto</th>
+                            <th>Titre</th>
+                            <th>Source</th>
+                            <th>Sentiment</th>
+                            <th>Impact</th>
+                            <th>Date</th>
+                        </tr>
+                        {% for news_id, symbol, title, url, source, polarity, impact_score, published_at in news_data %}
+                        <tr>
+                            <td>{{ symbol }}</td>
+                            <td><a href="{{ url }}" target="_blank">{{ title[:60] }}...</a></td>
+                            <td>{{ source }}</td>
+                            <td>
+                                {% if polarity > 0.1 %}
+                                    <span class="buy">🟢 Positif</span>
+                                {% elif polarity < -0.1 %}
+                                    <span class="sell">🔴 Négatif</span>
+                                {% else %}
+                                    <span class="hold">🟡 Neutre</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ "%.0f"|format(impact_score) }}/100</td>
+                            <td>{{ published_at[:10] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+
+                <!-- Impact des News sur le RSI -->
+                <div class="card">
+                    <h2>🎯 Impact des News sur le RSI</h2>
+                    <p><em>Comment les news influencent le RSI de chaque crypto.</em></p>
+                    <table>
+                        <tr>
+                            <th>Crypto</th>
+                            <th>Tendance des News</th>
+                            <th>Polarité Moyenne</th>
+                            <th>RSI</th>
+                            <th>Corrélation</th>
+                            <th>Interprétation</th>
+                        </tr>
+                        {% for symbol, avg_polarity, avg_impact, rsi, correlation, sentiment_trend in news_rsi_correlations %}
+                        <tr>
+                            <td>{{ symbol }}</td>
+                            <td>
+                                {% if sentiment_trend == "Positive" %}
+                                    <span class="buy">🟢 {{ sentiment_trend }}</span>
+                                {% elif sentiment_trend == "Negative" %}
+                                    <span class="sell">🔴 {{ sentiment_trend }}</span>
+                                {% else %}
+                                    <span class="hold">🟡 {{ sentiment_trend }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ "%.2f"|format(avg_polarity) }}</td>
+                            <td>{{ "%.2f"|format(rsi) }}</td>
+                            <td>{{ "%.2f"|format(correlation) }}</td>
+                            <td>
+                                {% if correlation > 0.7 %}
+                                    ⬆️ <strong>Forte corrélation</strong> : Les news {{ sentiment_trend.lower() }}s influencent fortement le RSI.
+                                {% elif correlation > 0.3 %}
+                                    ➖ <strong>Corrélation modérée</strong> : Les news ont un impact partiel.
+                                {% else %}
+                                    ⬇️ <strong>Faible corrélation</strong> : Les news n'influencent pas le RSI.
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- ========== ONGLET LÉGENDE ========== -->
+            <div id="legend" class="tab-content">
+                <div class="card">
+                    <h2>📚 Légende des Indicateurs</h2>
+                    <div class="legend">
+                        <h3>📊 RSI</h3>
+                        <p><strong>Définition</strong> : Indicateur technique (0-100). <span class="buy">🟢 BUY</span> si &lt;30, <span class="sell">🔴 SELL</span> si &gt;70, <span class="hold">🟡 HOLD</span> sinon.</p>
+                    </div>
+                    <div class="legend">
+                        <h3>🔗 Corrélation BTC</h3>
+                        <p><strong>🔥 Forte (>0.7)</strong>, <strong>➖ Modérée (0.3-0.7)</strong>, <strong>❄️ Faible (&lt;0.3)</strong>.</p>
+                    </div>
+                    <div class="legend">
+                        <h3>📰 Sentiment</h3>
+                        <p><span class="buy">🟢 Positif</span> (&gt;+0.1), <span class="sell">🔴 Négatif</span> (&lt;-0.1), <span class="hold">🟡 Neutre</span> (-0.1 à +0.1).</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Variables globales pour les graphiques
+        let priceChart, rsiChart, sentimentRsiChart;
+
+        // Fonction pour switcher les onglets
+        function switchTab(event, tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // ========== FONCTIONS POUR LES GRAPHIQUES ==========
+        function updatePriceChart(data, symbol) {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            if (priceChart) priceChart.destroy();
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: `Prix (${symbol}) en EUR`,
+                        data: data.data,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1,
+                        fill: true,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Prix: ${context.parsed.y.toFixed(5)} €`;
+                                },
+                                title: function(context) {
+                                    return `Date: ${context[0].label}`;
+                                }
+                            },
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 13 },
+                            padding: 10
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: false, title: { display: true, text: 'Prix (EUR)' } },
+                        x: {
+                            title: { display: true, text: 'Date' },
+                            ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateRsiChart(data, symbol) {
+            const ctx = document.getElementById('rsiChart').getContext('2d');
+            if (rsiChart) rsiChart.destroy();
+            rsiChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: `RSI (${symbol})`,
+                        data: data.data,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.1,
+                        fill: true,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const rsi = context.parsed.y;
+                                    let signal = "🟡 HOLD";
+                                    if (rsi < 30) signal = "🟢 BUY";
+                                    else if (rsi > 70) signal = "🔴 SELL";
+                                    return `RSI: ${rsi.toFixed(2)} (${signal})`;
+                                },
+                                title: function(context) {
+                                    return `Date: ${context[0].label}`;
+                                }
+                            },
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 13 },
+                            padding: 10
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: false, min: 0, max: 100, title: { display: true, text: 'RSI' } },
+                        x: {
+                            title: { display: true, text: 'Date' },
+                            ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSentimentRsiChart(newsSentiment, rsi, symbol) {
+            const ctx = document.getElementById('sentimentRsiChart').getContext('2d');
+            if (sentimentRsiChart) sentimentRsiChart.destroy();
+            sentimentRsiChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: newsSentiment.labels,
+                    datasets: [
+                        {
+                            label: 'Polarité des News',
+                            data: newsSentiment.polarity,
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'RSI',
+                            data: rsi.data,
+                            backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y1',
+                            type: 'line',
+                            tension: 0.3,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 0) {
+                                        const polarity = context.parsed.y;
+                                        let sentiment = "🟡 Neutre";
+                                        if (polarity > 0.1) sentiment = "🟢 Positif";
+                                        else if (polarity < -0.1) sentiment = "🔴 Négatif";
+                                        return `Polarité: ${polarity.toFixed(2)} (${sentiment})`;
+                                    } else {
+                                        const rsi = context.parsed.y;
+                                        let signal = "🟡 HOLD";
+                                        if (rsi < 30) signal = "🟢 BUY";
+                                        else if (rsi > 70) signal = "🔴 SELL";
+                                        return `RSI: ${rsi.toFixed(2)} (${signal})`;
+                                    }
+                                },
+                                title: function(context) {
+                                    return `Date: ${context[0].label}`;
+                                }
+                            },
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 13 },
+                            padding: 10
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'Polarité' },
+                            min: -1,
+                            max: 1
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'RSI' },
+                            min: 0,
+                            max: 100,
+                            grid: { drawOnChartArea: false }
+                        },
+                        x: {
+                            title: { display: true, text: 'Date' },
+                            ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ========== FONCTION POUR LE TOP 5 DES NEWS ==========
+        function loadTopImpactNews() {
+            fetch('/api/top_impact_news')
+                .then(response => {
+                    if (!response.ok) throw new Error("Erreur réseau");
+                    return response.json();
+                })
+                .then(news => {
+                    const container = document.getElementById('top-impact-news-container');
+                    if (!news || news.length === 0) {
+                        container.innerHTML = '<p style="text-align: center; color: #7f8c8d;">Aucune news impactante trouvée.</p>';
+                        return;
+                    }
+
+                    let html = `
+                        <table>
+                            <tr>
+                                <th>#</th>
+                                <th>Crypto</th>
+                                <th>Titre</th>
+                                <th>Impact</th>
+                                <th>Variation Prix</th>
+                                <th>Résumé</th>
+                            </tr>
+                    `;
+
+                    news.forEach((item, index) => {
+                        const sentimentEmoji = item.polarity > 0.1 ? '🟢' : item.polarity < -0.1 ? '🔴' : '🟡';
+                        const priceTrendEmoji = item.price_change_pct > 0 ? '⬆️' : '⬇️';
+                        const title = item.title.substring(0, 50) + (item.title.length > 50 ? '...' : '');
+                        const summary = item.summary || 'Aucun résumé disponible';
+
+                        html += `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td><strong>${item.symbol}</strong></td>
+                                <td><a href="${item.url}" target="_blank" style="color: #3498db;">${title}</a></td>
+                                <td>${sentimentEmoji} ${item.impact_score.toFixed(0)}/100</td>
+                                <td>${priceTrendEmoji} ${Math.abs(item.price_change_pct).toFixed(2)}%</td>
+                                <td style="font-size: 0.9em; max-width: 300px;">${summary}</td>
+                            </tr>
+                        `;
+                    });
+
+                    html += '</table>';
+                    container.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error("Erreur Top 5 News:", error);
+                    document.getElementById('top-impact-news-container').innerHTML =
+                        '<p style="color: #e74c3c;">Erreur de chargement des news. Vérifie que /api/top_impact_news fonctionne.</p>';
+                });
+        }
+
+        // ========== FONCTION POUR LE RAFRAÎCHISSEMENT ==========
+        function refreshAll() {
+            const lastRefreshEl = document.getElementById('last-refresh');
+            lastRefreshEl.innerHTML = '<span class="loading-spinner"></span> Rafraîchissement en cours...';
+
+            fetch('/refresh')
+                .then(response => {
+                    if (!response.ok) throw new Error(`Erreur serveur: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === "success") {
+                        lastRefreshEl.textContent = `✅ Dernier rafraîchissement: ${new Date().toLocaleTimeString()}`;
+                        // Recharge les graphiques et le top 5
+                        updateCharts();
+                        loadTopImpactNews();
+                    } else {
+                        lastRefreshEl.textContent = `❌ Erreur: ${data.message || 'Erreur inconnue'}`;
+                    }
+                })
+                .catch(error => {
+                    lastRefreshEl.textContent = `❌ Erreur: ${error.message}`;
+                    console.error("Erreur refresh:", error);
+                });
+        }
+
+        // ========== FONCTION POUR METTRE À JOUR LES GRAPHIQUES ==========
+        function updateCharts() {
+            const symbol = document.getElementById('crypto-select').value;
+            Promise.all([
+                fetch(`/api/prices/${symbol}`).then(res => {
+                    if (!res.ok) throw new Error(`Erreur prix: ${res.status}`);
+                    return res.json();
+                }),
+                fetch(`/api/rsi/${symbol}`).then(res => {
+                    if (!res.ok) throw new Error(`Erreur RSI: ${res.status}`);
+                    return res.json();
+                }),
+                fetch(`/api/news_sentiment/${symbol}`).then(res => {
+                    if (!res.ok) throw new Error(`Erreur sentiment: ${res.status}`);
+                    return res.json();
+                })
+            ]).then(([prices, rsi, newsSentiment]) => {
+                updatePriceChart(prices, symbol);
+                updateRsiChart(rsi, symbol);
+                updateSentimentRsiChart(newsSentiment, rsi, symbol);
+            }).catch(error => {
+                console.error("Erreur graphiques:", error);
+            });
+        }
+
+        // ========== INITIALISATION AU CHARGEMENT ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCharts();
+            loadTopImpactNews();  // 👈 CHARGE LE TOP 5 AU DÉMARRAGE
+            document.getElementById('last-refresh').textContent = `Dernier rafraîchissement: ${new Date().toLocaleTimeString()}`;
+        });
+    </script>
+</body>
+</html>
