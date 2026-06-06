@@ -3,7 +3,4 @@ requests==2.31.0
 textblob==0.18.0
 pandas==2.3.3
 numpy==2.3.5
-Cython==3.0.0
-pandas-ta>=0.4.72b0  # 👈 Version compatible avec numba>=0.63.0
-numba>=0.63.0        # 👈 Version disponible sur PyPI
 gunicorn==21.2.0

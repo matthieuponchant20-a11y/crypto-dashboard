@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
-import pandas_ta as ta  # RSI = ta.rsi(df['close'], length=14)
+import numpy as np
+from indicators import rsi
 from datetime import datetime
 # -*- coding: utf-8 -*-
 import sys
@@ -39,8 +40,9 @@ def calculate_rsi(window=14):
             continue
 
         # Calcule le RSI
-        rsi = ta.rsi(pd.Series(df["price"]), length=14)  # 👈 Même résultat
-        df["RSI"] = rsi.rsi()
+        prices_array = np.array(df["price"])
+        rsi_values = rsi(prices_array, period=14)  # 👈 Même résultat, sans dépendance
+        df["RSI"] = rsi_values
         last_rsi = df["RSI"].iloc[-1]
         last_timestamp = df["timestamp"].iloc[-1]
 

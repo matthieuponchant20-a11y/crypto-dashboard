@@ -40,7 +40,7 @@ def fetch_crypto_news_rss(days=7):
     conn = sqlite3.connect("crypto.db")
     cursor = conn.cursor()
 
-    # Création de la table (sans commentaire dans la requête)
+    # Création de la table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS crypto_news (
             id TEXT PRIMARY KEY,
@@ -58,42 +58,46 @@ def fetch_crypto_news_rss(days=7):
     start_date = datetime.now() - timedelta(days=days)
 
     for feed in RSS_FEEDS:
-        parsed_feed = parse_rss(feed["url"])
-        for entry in parsed_feed.entries:
+        parsed_feed = parse_rss(feed["url"])  # 👈 Retourne une liste de dicts
+        for entry in parsed_feed:  # 👈 entry est un DICT, pas un objet
             # Vérifie si la news concerne une de nos cryptos
             news_symbols = []
             for symbol in SYMBOLS:
-                if symbol.lower() in entry.title.lower() or symbol.lower() in entry.summary.lower():
+                # ✅ Correction : utilise entry['title'] et entry['description']
+                if (symbol.lower() in entry['title'].lower() or
+                    symbol.lower() in entry['description'].lower()):
                     news_symbols.append(symbol)
 
             if not news_symbols:
                 continue
 
-            # Récupère la date de publication
-            if hasattr(entry, 'published_parsed'):
-                published_at = datetime(*entry.published_parsed[:6])
-            else:
-                published_at = datetime.now()
+            # ✅ Correction : utilise entry['pubDate'] et convertis en datetime
+            try:
+                published_at = datetime.strptime(entry['pubDate'], '%a, %d %b %Y %H:%M:%S %z').replace(tzinfo=None)
+            except (ValueError, TypeError):
+                published_at = datetime.now().replace(tzinfo=None)
 
             if published_at < start_date:
                 continue
 
-            # Insère la news pour chaque crypto concernée
+            # ✅ Correction : utilise les clés du dictionnaire
             for symbol in news_symbols:
+                # Génère un ID unique (ex: hash du lien + symbol)
+                news_id = f"{symbol}-{hash(entry['link'])}"
                 cursor.execute("""
                     INSERT OR IGNORE INTO crypto_news
                     (id, symbol, title, source, url, content, published_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    f"{symbol}-{entry.id}",
+                    news_id,  # 👈 ID unique
                     symbol,
-                    entry.title,
+                    entry['title'],  # ✅ Clé du dictionnaire
                     feed["name"],
-                    entry.link,
-                    entry.summary[:2000] if hasattr(entry, 'summary') else "",
+                    entry['link'],
+                    entry['description'][:2000],  # ✅ Clé du dictionnaire
                     published_at
                 ))
-                print(f"✅ News: {entry.title[:50]}... ({symbol})")
+                print(f"✅ News: {entry['title'][:50]}... ({symbol})")
 
     conn.commit()
     conn.close()
