@@ -4,6 +4,10 @@ from datetime import datetime
 import subprocess
 import os
 import sys
+from init_db import init_db
+
+# Initialise la base de données AVANT toute requête
+init_db()
 
 app = Flask(__name__)
 
