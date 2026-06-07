@@ -1,4 +1,4 @@
-import sqlite3
+from db_utils import get_db_connection  # 👈 Importe la fonction
 import requests
 from datetime import datetime, timedelta
 import time
@@ -21,7 +21,7 @@ CRYPTOS = {
 
 def fetch_historical_data(days=7):  # 👈 7 jours seulement
     """Récupère les prix quotidiens (avec cache et parallélisation légère)."""
-    conn = sqlite3.connect("crypto.db")
+    conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
 
     # Vérifie si les données sont récentes (moins de 1 heure)

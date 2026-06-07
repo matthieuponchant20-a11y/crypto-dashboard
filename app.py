@@ -1,9 +1,9 @@
 from flask import Flask, render_template, jsonify
-import sqlite3
 from datetime import datetime
 import subprocess
 import os
 import sys
+from db_utils import get_db_connection  # 👈 Importe la fonction
 from init_db import init_db
 
 # Initialise la base de données AVANT toute requête
@@ -15,7 +15,7 @@ app = Flask(__name__)
 def get_prices():
     """Récupère les derniers prix (1 par crypto)."""
     try:
-        conn = sqlite3.connect("crypto.db")
+        conn = get_db_connection()  # ✅ Utilise le chemin persistant
         cursor = conn.cursor()
         cursor.execute("""
             SELECT symbol, price, MAX(timestamp) as timestamp
@@ -33,7 +33,7 @@ def get_prices():
 def get_rsi():
     """Récupère les derniers RSI (1 par crypto)."""
     try:
-        conn = sqlite3.connect("crypto.db")
+        conn = get_db_connection()  # ✅ Utilise le chemin persistant
         cursor = conn.cursor()
         cursor.execute("""
             SELECT symbol, rsi, MAX(timestamp) as timestamp
@@ -51,7 +51,7 @@ def get_rsi():
 def get_correlations():
     """Récupère les corrélations avec BTC (sans doublons)."""
     try:
-        conn = sqlite3.connect("crypto.db")
+        conn = get_db_connection()  # ✅ Utilise le chemin persistant
         cursor = conn.cursor()
         cursor.execute("""
             SELECT symbol1, correlation, timeframe
@@ -71,7 +71,7 @@ def get_correlations():
 def get_news_data():
     """Récupère les news + sentiment pour le dashboard."""
     try:
-        conn = sqlite3.connect("crypto.db")
+        conn = get_db_connection()  # ✅ Utilise le chemin persistant
         cursor = conn.cursor()
         cursor.execute("""
             SELECT
@@ -92,7 +92,7 @@ def get_news_data():
 def get_news_rsi_correlation():
     """Récupère les corrélations news/RSI (sans doublons, 1 entrée par crypto)."""
     try:
-        conn = sqlite3.connect("crypto.db")
+        conn = get_db_connection()  # ✅ Utilise le chemin persistant
         cursor = conn.cursor()
         cursor.execute("""
             SELECT symbol, avg_polarity, avg_impact, rsi, correlation, sentiment_trend
@@ -129,7 +129,7 @@ def dashboard():
 def get_price_history(symbol):
     """Récupère l'historique des prix pour une crypto (7 derniers jours)."""
     try:
-        conn = sqlite3.connect("crypto.db")
+        conn = get_db_connection()  # ✅ Utilise le chemin persistant
         cursor = conn.cursor()
         cursor.execute("""
             SELECT timestamp, price
@@ -151,7 +151,7 @@ def get_price_history(symbol):
 def get_rsi_history(symbol):
     """Récupère l'historique du RSI pour une crypto (7 derniers jours)."""
     try:
-        conn = sqlite3.connect("crypto.db")
+        conn = get_db_connection()  # ✅ Utilise le chemin persistant
         cursor = conn.cursor()
         cursor.execute("""
             SELECT timestamp, rsi
@@ -173,7 +173,7 @@ def get_rsi_history(symbol):
 def get_news_sentiment_history(symbol):
     """Récupère l'historique du sentiment des news pour une crypto (7 derniers jours)."""
     try:
-        conn = sqlite3.connect("crypto.db")
+        conn = get_db_connection()  # ✅ Utilise le chemin persistant
         cursor = conn.cursor()
         cursor.execute("""
             SELECT cn.published_at, ns.polarity, ns.impact_score
@@ -197,7 +197,7 @@ def get_news_sentiment_history(symbol):
 def get_top_impact_news():
     """Récupère les 5 news les plus impactantes (toutes cryptos) avec un résumé."""
     try:
-        conn = sqlite3.connect("crypto.db")
+        conn = get_db_connection()  # ✅ Utilise le chemin persistant
         cursor = conn.cursor()
         cursor.execute("""
             SELECT DISTINCT cn.id, cn.symbol, cn.title, cn.url, cn.source,

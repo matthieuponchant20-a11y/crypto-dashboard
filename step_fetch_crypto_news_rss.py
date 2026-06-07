@@ -1,10 +1,10 @@
-import sqlite3
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 import sys
 import io
 import time
+from db_utils import get_db_connection  # 👈 Importe la fonction
 
 # Compatibilité Windows/UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -44,8 +44,7 @@ def parse_rss(url):
         return []  # ✅ Retourne une liste vide au lieu de planter
 
 def fetch_crypto_news_rss(days=7):
-    """Récupère les news avec gestion des erreurs."""
-    conn = sqlite3.connect("crypto.db")
+    conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
 
     # Création de la table

@@ -1,8 +1,7 @@
-import sqlite3
+from db_utils import get_db_connection  # 👈 Importe la fonction
 
 def init_db():
-    """Crée TOUTES les tables et colonnes nécessaires pour ton app."""
-    conn = sqlite3.connect("crypto.db")
+    conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
 
     # ========== 1. TABLE PRICES ==========

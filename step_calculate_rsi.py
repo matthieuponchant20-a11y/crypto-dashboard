@@ -1,4 +1,4 @@
-import sqlite3
+from db_utils import get_db_connection  # 👈 Importe la fonction
 import pandas as pd
 import numpy as np
 from indicators import rsi
@@ -13,7 +13,7 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 def calculate_rsi(window=14):
     """Calcule le RSI pour toutes les cryptos."""
-    conn = sqlite3.connect("crypto.db")
+    conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
 
     # Crée la table des indicateurs si elle n'existe pas

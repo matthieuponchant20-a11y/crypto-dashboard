@@ -1,9 +1,9 @@
-import sqlite3
 from textblob import TextBlob
 from datetime import datetime
 # -*- coding: utf-8 -*-
 import sys
 import io
+from db_utils import get_db_connection  # 👈 Importe la fonction
 
 # Compatibilité Windows/UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -11,7 +11,7 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 def analyze_news_sentiment():
     """Analyse le sentiment des news et calcule un score d'impact par crypto."""
-    conn = sqlite3.connect("crypto.db")
+    conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
 
     # Crée la table des sentiments

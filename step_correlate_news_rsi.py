@@ -1,8 +1,8 @@
-import sqlite3
 from datetime import datetime
 # -*- coding: utf-8 -*-
 import sys
 import io
+from db_utils import get_db_connection  # 👈 Importe la fonction
 
 # Compatibilité Windows/UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -10,7 +10,7 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 def correlate_news_rsi():
     """Calcule l'impact moyen des news sur le RSI pour chaque crypto."""
-    conn = sqlite3.connect("crypto.db")
+    conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
 
     # Crée la table des corrélations news/RSI
