@@ -3,7 +3,7 @@ from datetime import datetime
 import subprocess
 import os
 import sys
-from db_utils import get_db_connection
+from db_utils import get_db_connection, get_db_path  # 👈 Ajoute get_db_path
 from init_db import init_db
 
 app = Flask(__name__)
@@ -322,6 +322,17 @@ def debug_db():
         return jsonify(results)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/debug/path")
+def debug_path():
+    """Affiche le chemin de la base et son statut pour le débogage."""
+    db_path = get_db_path()
+    return jsonify({
+        "db_path": db_path,  # Chemin absolu de la base
+        "cwd": os.getcwd(),  # Répertoire courant du processus
+        "db_exists": os.path.exists(db_path),  # La base existe-t-elle ?
+        "db_size": os.path.getsize(db_path) if os.path.exists(db_path) else 0  # Taille en octets
+    })
 
 # ========== DÉMARRAGE DU SERVEUR ==========
 if __name__ == "__main__":

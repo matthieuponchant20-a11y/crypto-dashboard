@@ -1,3 +1,4 @@
+import os
 from db_utils import get_db_connection  # 👈 Importe la fonction
 import pandas as pd
 import numpy as np
@@ -7,6 +8,7 @@ from datetime import datetime
 import sys
 import io
 
+
 # Compatibilité Windows/UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
@@ -15,6 +17,11 @@ def calculate_rsi(window=14):
     """Calcule le RSI pour toutes les cryptos."""
     conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
+
+    #DEBUG 
+    print(f"📁 Répertoire courant: {os.getcwd()}")
+    print(f"📁 Chemin de la base: {get_db_connection().execute('PRAGMA database_list').fetchall()}")
+    #DEBUG 
 
     # Crée la table des indicateurs si elle n'existe pas
     cursor.execute("""

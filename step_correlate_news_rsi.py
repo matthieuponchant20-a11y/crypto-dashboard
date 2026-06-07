@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 # -*- coding: utf-8 -*-
 import sys
@@ -12,6 +13,11 @@ def correlate_news_rsi():
     """Calcule l'impact moyen des news sur le RSI pour chaque crypto."""
     conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
+
+    #DEBUG 
+    print(f"📁 Répertoire courant: {os.getcwd()}")
+    print(f"📁 Chemin de la base: {get_db_connection().execute('PRAGMA database_list').fetchall()}")
+    #DEBUG 
 
     # Crée la table des corrélations news/RSI
     cursor.execute("""

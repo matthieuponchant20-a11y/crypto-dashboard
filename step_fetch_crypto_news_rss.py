@@ -1,3 +1,4 @@
+import os
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
@@ -46,6 +47,11 @@ def parse_rss(url):
 def fetch_crypto_news_rss(days=7):
     conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
+
+    #DEBUG 
+    print(f"📁 Répertoire courant: {os.getcwd()}")
+    print(f"📁 Chemin de la base: {get_db_connection().execute('PRAGMA database_list').fetchall()}")
+    #DEBUG 
 
     # Création de la table
     cursor.execute("""

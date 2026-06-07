@@ -1,3 +1,4 @@
+import os 
 from db_utils import get_db_connection  # 👈 Importe la fonction
 import requests
 from datetime import datetime, timedelta
@@ -23,6 +24,11 @@ def fetch_historical_data(days=7):  # 👈 7 jours seulement
     """Récupère les prix quotidiens (avec cache et parallélisation légère)."""
     conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
+
+    #DEBUG 
+    print(f"📁 Répertoire courant: {os.getcwd()}")
+    print(f"📁 Chemin de la base: {get_db_connection().execute('PRAGMA database_list').fetchall()}")
+    #DEBUG 
 
     # Vérifie si les données sont récentes (moins de 1 heure)
     cursor.execute("SELECT MAX(timestamp) FROM prices")
