@@ -6,8 +6,10 @@ import io
 from db_utils import get_db_connection, get_db_path  # 👈 Importe la fonction
 
 # Ajoute ça au début de chaque script (après les imports)
-print(f"📁 [SCRIPT] Répertoire courant: {os.getcwd()}")
-print(f"📁 [SCRIPT] Chemin de la base: {get_db_path()}")
+# 👇 LIGNES À AJOUTER
+print(f"📁 [{os.path.basename(__file__)}] Répertoire: {os.getcwd()}")
+print(f"📁 [{os.path.basename(__file__)}] Base: {get_db_path()}")
+print(f"📁 [{os.path.basename(__file__)}] Existe: {os.path.exists(get_db_path())}")
 
 # Compatibilité Windows/UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')

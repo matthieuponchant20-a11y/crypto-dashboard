@@ -347,9 +347,9 @@ def debug_path():
 
 # ========== DÉMARRAGE DU SERVEUR ==========
 if __name__ == "__main__":
-    # 👇 VÉRIFIE LE CHEMIN AVANT DE DÉMARRER
-    print(f"📁 Répertoire courant: {os.getcwd()}")
-    print(f"📁 Chemin de la base: {get_db_path()}")
+    # 👇 FORCE LE RÉPERTOIRE DE TRAVAIL
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    print(f"📁 Répertoire forcé: {os.getcwd()}")
 
     # Exécute l'orchestrateur
     print("🚀 Exécution de l'orchestrateur...")
@@ -362,25 +362,22 @@ if __name__ == "__main__":
         encoding='utf-8',
         errors='ignore',
         timeout=120,
-        cwd=os.path.dirname(__file__)  # 👈 Force le répertoire
+        cwd=os.path.dirname(__file__)  # 👈 Répertoire du projet
     )
 
-    # 👇 AFFICHE LES LOGS DE L'ORCHESTRATEUR
-    print(f"📝 Sortie orchestrateur:\n{result.stdout}")
+    # 👇 AFFICHE LES LOGS COMPLETS
+    print("\n=== SORTIE DE L'ORCHESTRATEUR ===")
+    print(result.stdout)
     if result.stderr:
-        print(f"❌ Erreurs orchestrateur:\n{result.stderr}")
+        print("\n=== ERREURS DE L'ORCHESTRATEUR ===")
+        print(result.stderr)
 
-    # 👇 VÉRIFIE QUE LA BASE EST REMPLIE
+    # Vérifie la base après exécution
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = [table[0] for table in cursor.fetchall()]
-    print(f"📊 Tables dans la base: {tables}")
-
-    for table in tables:
+    for table in ["prices", "indicators", "crypto_news"]:
         cursor.execute(f"SELECT COUNT(*) FROM {table};")
-        count = cursor.fetchone()[0]
-        print(f"📌 {table}: {count} lignes")  # 👈 Doit afficher > 0 !
+        print(f"📊 {table}: {cursor.fetchone()[0]} lignes")
     conn.close()
 
     # Démarre Flask
