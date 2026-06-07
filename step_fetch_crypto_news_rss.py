@@ -15,7 +15,9 @@ SYMBOLS = ["BTC", "ETH", "SOL", "AAVE", "XRP", "VET"]
 RSS_FEEDS = [
     {"name": "CoinDesk", "url": "https://www.coindesk.com/feed"},
     {"name": "CoinTelegraph", "url": "https://cointelegraph.com/feed"},
-    # {"name": "Bitcoin Magazine", "url": "https://bitcoinmagazine.com/feed"}  # ✅ forbidden 
+    {"name": "CoinTribune", "url": "https://www.cointribune.com/feed"}, 
+    {"name": "JournalDuCoin", "url": "https://journalducoin.com/feed/"}, 
+    {"name": "CryptoNews", "url": "https://cryptonews.com/fr/feed/"}
 ]
 
 def parse_rss(url):
