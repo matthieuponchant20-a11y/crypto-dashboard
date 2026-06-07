@@ -1,21 +1,61 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from datetime import datetime
 import subprocess
 import os
 import sys
-from db_utils import get_db_connection  # 👈 Importe la fonction
+from db_utils import get_db_connection
 from init_db import init_db
-
-# Initialise la base de données AVANT toute requête
-init_db()
 
 app = Flask(__name__)
 
-# ========== FONCTIONS DE RÉCUPÉRATION DES DONNÉES (AVEC GESTION DES ERREURS) ==========
+# ========== INITIALISATION AU DÉMARRAGE ==========
+# 1. Crée les tables
+init_db()
+
+# Variable globale pour suivre la première requête
+first_request_done = False
+
+# 2. Exécute l'orchestrateur AVANT la première requête
+@app.before_request  # ✅ Remplace @app.before_first_request
+def load_initial_data():
+    """Exécute l'orchestrateur UNIQUEMENT avant la première requête."""
+    global first_request_done
+    if not first_request_done:
+        print("🚀 Chargement initial des données...")
+        script_path = os.path.join(os.path.dirname(__file__), "orchestrator_full.py")
+
+        try:
+            result = subprocess.run(
+                [sys.executable, script_path],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore',
+                timeout=120,
+                cwd=os.path.dirname(__file__)
+            )
+
+            if result.returncode != 0:
+                print(f"❌ Erreur dans l'orchestrateur:")
+                print(f"STDOUT: {result.stdout}")
+                print(f"STDERR: {result.stderr}")
+            else:
+                print(f"✅ Données chargées avec succès !")
+
+            first_request_done = True  # 👈 Empêche les exécutions suivantes
+
+        except subprocess.TimeoutExpired:
+            print("⚠️ Timeout: l'orchestrateur a mis trop de temps (>2min)")
+            first_request_done = True
+        except Exception as e:
+            print(f"❌ Erreur inattendue: {str(e)}")
+            first_request_done = True
+
+# ========== FONCTIONS DE RÉCUPÉRATION DES DONNÉES ==========
 def get_prices():
     """Récupère les derniers prix (1 par crypto)."""
     try:
-        conn = get_db_connection()  # ✅ Utilise le chemin persistant
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT symbol, price, MAX(timestamp) as timestamp
@@ -33,7 +73,7 @@ def get_prices():
 def get_rsi():
     """Récupère les derniers RSI (1 par crypto)."""
     try:
-        conn = get_db_connection()  # ✅ Utilise le chemin persistant
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT symbol, rsi, MAX(timestamp) as timestamp
@@ -51,13 +91,13 @@ def get_rsi():
 def get_correlations():
     """Récupère les corrélations avec BTC (sans doublons)."""
     try:
-        conn = get_db_connection()  # ✅ Utilise le chemin persistant
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT symbol1, correlation, timeframe
             FROM correlations
             WHERE symbol2 = 'BTC'
-            GROUP BY symbol1  -- Évite les doublons
+            GROUP BY symbol1
             ORDER BY timestamp DESC
             LIMIT 6
         """)
@@ -71,7 +111,7 @@ def get_correlations():
 def get_news_data():
     """Récupère les news + sentiment pour le dashboard."""
     try:
-        conn = get_db_connection()  # ✅ Utilise le chemin persistant
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT
@@ -90,14 +130,14 @@ def get_news_data():
         return []
 
 def get_news_rsi_correlation():
-    """Récupère les corrélations news/RSI (sans doublons, 1 entrée par crypto)."""
+    """Récupère les corrélations news/RSI (1 entrée par crypto)."""
     try:
-        conn = get_db_connection()  # ✅ Utilise le chemin persistant
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT symbol, avg_polarity, avg_impact, rsi, correlation, sentiment_trend
             FROM news_rsi_correlation
-            GROUP BY symbol  -- Évite les doublons
+            GROUP BY symbol
             ORDER BY MAX(timestamp) DESC
             LIMIT 6
         """)
@@ -129,7 +169,7 @@ def dashboard():
 def get_price_history(symbol):
     """Récupère l'historique des prix pour une crypto (7 derniers jours)."""
     try:
-        conn = get_db_connection()  # ✅ Utilise le chemin persistant
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT timestamp, price
@@ -141,7 +181,7 @@ def get_price_history(symbol):
         data = cursor.fetchall()
         conn.close()
         return jsonify({
-            "labels": [row[0][:16] for row in reversed(data)],  # YYYY-MM-DD HH:MM
+            "labels": [row[0][:16] for row in reversed(data)],
             "data": [row[1] for row in reversed(data)]
         })
     except Exception as e:
@@ -151,7 +191,7 @@ def get_price_history(symbol):
 def get_rsi_history(symbol):
     """Récupère l'historique du RSI pour une crypto (7 derniers jours)."""
     try:
-        conn = get_db_connection()  # ✅ Utilise le chemin persistant
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT timestamp, rsi
@@ -163,7 +203,7 @@ def get_rsi_history(symbol):
         data = cursor.fetchall()
         conn.close()
         return jsonify({
-            "labels": [row[0][:16] for row in reversed(data)],  # YYYY-MM-DD HH:MM
+            "labels": [row[0][:16] for row in reversed(data)],
             "data": [row[1] for row in reversed(data)]
         })
     except Exception as e:
@@ -171,9 +211,9 @@ def get_rsi_history(symbol):
 
 @app.route("/api/news_sentiment/<symbol>")
 def get_news_sentiment_history(symbol):
-    """Récupère l'historique du sentiment des news pour une crypto (7 derniers jours)."""
+    """Récupère l'historique du sentiment des news pour une crypto."""
     try:
-        conn = get_db_connection()  # ✅ Utilise le chemin persistant
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT cn.published_at, ns.polarity, ns.impact_score
@@ -186,7 +226,7 @@ def get_news_sentiment_history(symbol):
         data = cursor.fetchall()
         conn.close()
         return jsonify({
-            "labels": [row[0][:16] for row in reversed(data)],  # YYYY-MM-DD HH:MM
+            "labels": [row[0][:16] for row in reversed(data)],
             "polarity": [row[1] for row in reversed(data)],
             "impact": [row[2] for row in reversed(data)]
         })
@@ -195,9 +235,9 @@ def get_news_sentiment_history(symbol):
 
 @app.route("/api/top_impact_news")
 def get_top_impact_news():
-    """Récupère les 5 news les plus impactantes (toutes cryptos) avec un résumé."""
+    """Récupère les 5 news les plus impactantes."""
     try:
-        conn = get_db_connection()  # ✅ Utilise le chemin persistant
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             SELECT DISTINCT cn.id, cn.symbol, cn.title, cn.url, cn.source,
@@ -259,11 +299,9 @@ def get_top_impact_news():
 
 @app.route("/refresh")
 def refresh_data():
-    """Relance l'orchestrateur et rafraîchit les données."""
+    """Relance l'orchestrateur manuellement."""
     try:
         script_path = os.path.join(os.path.dirname(__file__), "orchestrator_full.py")
-        print(f"🔄 Exécution de l'orchestrateur: {script_path}")  # Debug
-
         result = subprocess.run(
             [sys.executable, script_path],
             capture_output=True,
@@ -271,11 +309,8 @@ def refresh_data():
             encoding='utf-8',
             errors='ignore',
             timeout=60,
-            cwd=os.path.dirname(__file__)  # 👈 Exécute dans le bon répertoire
+            cwd=os.path.dirname(__file__)
         )
-
-        print(f"📝 Sortie: {result.stdout}")  # Debug
-        print(f"❌ Erreurs: {result.stderr}")  # Debug
 
         if result.returncode == 0:
             return jsonify({
@@ -303,8 +338,5 @@ def refresh_data():
         }), 500
 
 if __name__ == "__main__":
-    #local
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-    # online
-    gunicorn_app = app
