@@ -82,6 +82,7 @@ def init_db():
             correlation REAL NOT NULL,
             avg_polarity REAL,
             avg_impact REAL,
+            sentiment_trend REAL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(news_id) REFERENCES crypto_news(id)
         )
