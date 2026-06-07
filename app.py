@@ -295,7 +295,7 @@ def refresh_data():
 
 @app.route("/debug/db")
 def debug_db():
-    """Affiche le contenu de la base pour le débogage."""
+    """Affiche le contenu de la base pour le débogage (compatible JSON)."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -304,22 +304,33 @@ def debug_db():
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = [table[0] for table in cursor.fetchall()]
 
-        # Compte les lignes et affiche un échantillon
         results = {}
         for table in tables:
+            # Compte les lignes
             cursor.execute(f"SELECT COUNT(*) FROM {table};")
             count = cursor.fetchone()[0]
-            results[table] = {
-                "count": count,
-                "columns": [col[1] for col in cursor.execute(f"PRAGMA table_info({table})").fetchall()]
-            }
+
+            # Récupère les noms des colonnes
+            cursor.execute(f"PRAGMA table_info({table});")
+            columns = [col[1] for col in cursor.fetchall()]  # Noms des colonnes
+
+            # Échantillon de données (converti en dict)
+            sample = []
             if count > 0:
                 cursor.execute(f"SELECT * FROM {table} LIMIT 2;")
-                sample = cursor.fetchall()
-                results[table]["sample"] = sample
+                for row in cursor.fetchall():
+                    # Convertit sqlite3.Row en dict
+                    sample.append(dict(zip(columns, row)))
+
+            results[table] = {
+                "count": count,
+                "columns": columns,
+                "sample": sample  # 👈 Maintenant en format JSON
+            }
 
         conn.close()
         return jsonify(results)
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
