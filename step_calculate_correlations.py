@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from datetime import datetime, timedelta  # 👈 L'import manquant est ici
 # -*- coding: utf-8 -*-
