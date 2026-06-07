@@ -1,9 +1,15 @@
+import os
+
 from textblob import TextBlob
 from datetime import datetime
 # -*- coding: utf-8 -*-
 import sys
 import io
-from db_utils import get_db_connection  # 👈 Importe la fonction
+from db_utils import get_db_connection, get_db_path  # 👈 Importe la fonction
+
+# Ajoute ça au début de chaque script (après les imports)
+print(f"📁 [SCRIPT] Répertoire courant: {os.getcwd()}")
+print(f"📁 [SCRIPT] Chemin de la base: {get_db_path()}")
 
 # Compatibilité Windows/UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -13,6 +19,11 @@ def analyze_news_sentiment():
     """Analyse le sentiment des news et calcule un score d'impact par crypto."""
     conn = get_db_connection()  # ✅ Utilise le chemin persistant
     cursor = conn.cursor()
+
+    #DEBUG 
+    print(f"📁 Répertoire courant: {os.getcwd()}")
+    print(f"📁 Chemin de la base: {get_db_connection().execute('PRAGMA database_list').fetchall()}")
+    #DEBUG 
 
     # Crée la table des sentiments
     cursor.execute("""

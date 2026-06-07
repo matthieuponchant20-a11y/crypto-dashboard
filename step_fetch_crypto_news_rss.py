@@ -5,7 +5,11 @@ from datetime import datetime, timedelta
 import sys
 import io
 import time
-from db_utils import get_db_connection  # 👈 Importe la fonction
+from db_utils import get_db_connection, get_db_path  # 👈 Importe la fonction
+
+# Ajoute ça au début de chaque script (après les imports)
+print(f"📁 [SCRIPT] Répertoire courant: {os.getcwd()}")
+print(f"📁 [SCRIPT] Chemin de la base: {get_db_path()}")
 
 # Compatibilité Windows/UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')

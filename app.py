@@ -336,9 +336,14 @@ def debug_path():
 
 # ========== DÉMARRAGE DU SERVEUR ==========
 if __name__ == "__main__":
-    # 👇 EXÉCUTE L'ORCHESTRATEUR AVANT DE DÉMARRER FLASK
-    print("🚀 Chargement initial des données...")
+    # 👇 VÉRIFIE LE CHEMIN AVANT DE DÉMARRER
+    print(f"📁 Répertoire courant: {os.getcwd()}")
+    print(f"📁 Chemin de la base: {get_db_path()}")
+
+    # Exécute l'orchestrateur
+    print("🚀 Exécution de l'orchestrateur...")
     script_path = os.path.join(os.path.dirname(__file__), "orchestrator_full.py")
+
     result = subprocess.run(
         [sys.executable, script_path],
         capture_output=True,
@@ -346,15 +351,26 @@ if __name__ == "__main__":
         encoding='utf-8',
         errors='ignore',
         timeout=120,
-        cwd=os.path.dirname(__file__)
+        cwd=os.path.dirname(__file__)  # 👈 Force le répertoire
     )
 
-    if result.returncode != 0:
-        print(f"❌ Erreur dans l'orchestrateur:")
-        print(f"STDOUT: {result.stdout}")
-        print(f"STDERR: {result.stderr}")
-    else:
-        print(f"✅ Données chargées avec succès !")
+    # 👇 AFFICHE LES LOGS DE L'ORCHESTRATEUR
+    print(f"📝 Sortie orchestrateur:\n{result.stdout}")
+    if result.stderr:
+        print(f"❌ Erreurs orchestrateur:\n{result.stderr}")
+
+    # 👇 VÉRIFIE QUE LA BASE EST REMPLIE
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [table[0] for table in cursor.fetchall()]
+    print(f"📊 Tables dans la base: {tables}")
+
+    for table in tables:
+        cursor.execute(f"SELECT COUNT(*) FROM {table};")
+        count = cursor.fetchone()[0]
+        print(f"📌 {table}: {count} lignes")  # 👈 Doit afficher > 0 !
+    conn.close()
 
     # Démarre Flask
     port = int(os.environ.get("PORT", 5000))
