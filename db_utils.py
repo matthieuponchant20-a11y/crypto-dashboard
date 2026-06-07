@@ -1,12 +1,9 @@
 import sqlite3
 import os
 
-# ✅ Chemin ABSOLU (même pour tous les processus)
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "crypto.db")
-
 def get_db_path():
     """Retourne le chemin ABSOLU de la base."""
-    return DB_PATH
+    return os.environ.get("CRYPTO_DB_PATH", os.path.join(os.path.dirname(__file__), "crypto.db"))
 
 def get_db_connection():
     """Retourne une connexion à la base."""

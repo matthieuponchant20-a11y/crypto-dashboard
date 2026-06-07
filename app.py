@@ -348,7 +348,8 @@ def debug_path():
 # ========== DÉMARRAGE DU SERVEUR ==========
 if __name__ == "__main__":
     # 👇 FORCE LE RÉPERTOIRE DE TRAVAIL
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    # os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.environ["CRYPTO_DB_PATH"] = get_db_path()  # 👈 Chemin absolu
     print(f"📁 Répertoire forcé: {os.getcwd()}")
 
     # Exécute l'orchestrateur
