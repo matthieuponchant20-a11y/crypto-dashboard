@@ -293,6 +293,36 @@ def refresh_data():
             "message": f"Erreur inattendue: {str(e)}"
         }), 500
 
+@app.route("/debug/db")
+def debug_db():
+    """Affiche le contenu de la base pour le débogage."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Liste des tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [table[0] for table in cursor.fetchall()]
+
+        # Compte les lignes et affiche un échantillon
+        results = {}
+        for table in tables:
+            cursor.execute(f"SELECT COUNT(*) FROM {table};")
+            count = cursor.fetchone()[0]
+            results[table] = {
+                "count": count,
+                "columns": [col[1] for col in cursor.execute(f"PRAGMA table_info({table})").fetchall()]
+            }
+            if count > 0:
+                cursor.execute(f"SELECT * FROM {table} LIMIT 2;")
+                sample = cursor.fetchall()
+                results[table]["sample"] = sample
+
+        conn.close()
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # ========== DÉMARRAGE DU SERVEUR ==========
 if __name__ == "__main__":
     # 👇 EXÉCUTE L'ORCHESTRATEUR AVANT DE DÉMARRER FLASK
