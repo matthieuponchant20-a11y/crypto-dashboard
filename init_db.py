@@ -1,12 +1,11 @@
 import sqlite3
 
 def init_db():
-    """Crée TOUTES les tables et colonnes nécessaires."""
+    """Crée TOUTES les tables et colonnes nécessaires pour ton app."""
     conn = sqlite3.connect("crypto.db")
     cursor = conn.cursor()
 
-    # ========== TABLES PRINCIPALES ==========
-    # Table des prix
+    # ========== 1. TABLE PRICES ==========
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS prices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,7 +16,7 @@ def init_db():
         )
     """)
 
-    # Table des indicateurs (RSI, MACD, etc.)
+    # ========== 2. TABLE INDICATORS ==========
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS indicators (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,13 +25,13 @@ def init_db():
             macd REAL,
             signal REAL,
             histogram REAL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             timeframe TEXT DEFAULT '1h',
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(symbol, timestamp, timeframe)
         )
     """)
 
-    # Table des corrélations (avec la colonne timeframe)
+    # ========== 3. TABLE CORRELATIONS ==========
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS correlations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +44,7 @@ def init_db():
         )
     """)
 
-    # Table des news
+    # ========== 4. TABLE CRYPTO_NEWS ==========
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS crypto_news (
             id TEXT PRIMARY KEY,
@@ -60,19 +59,20 @@ def init_db():
         )
     """)
 
-    # Table news_sentiment (NOUVELLE TABLE MANQUANTE)
+    # ========== 5. TABLE NEWS_SENTIMENT ==========
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS news_sentiment (
             id TEXT PRIMARY KEY,
             news_id TEXT NOT NULL,
             polarity REAL NOT NULL,
             subjectivity REAL NOT NULL,
+            impact_score REAL, 
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(news_id) REFERENCES crypto_news(id)
         )
     """)
 
-    # Table news_rsi_correlation (avec avg_polarity)
+    # ========== 6. TABLE NEWS_RSI_CORRELATION ==========
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS news_rsi_correlation (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,6 +81,7 @@ def init_db():
             rsi REAL NOT NULL,
             correlation REAL NOT NULL,
             avg_polarity REAL,
+            avg_impact REAL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(news_id) REFERENCES crypto_news(id)
         )
@@ -91,4 +92,4 @@ def init_db():
 
 if __name__ == "__main__":
     init_db()
-    print("✅ Base de données initialisée avec TOUTES les tables et colonnes.")
+    print("✅ Base de données initialisée avec TOUTES les colonnes manquantes.")
