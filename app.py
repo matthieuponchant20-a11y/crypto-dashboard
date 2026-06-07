@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify
 from datetime import datetime
 import subprocess
 import os
@@ -8,48 +8,8 @@ from init_db import init_db
 
 app = Flask(__name__)
 
-# ========== INITIALISATION AU DÉMARRAGE ==========
-# 1. Crée les tables
-init_db()
-
-# Variable globale pour suivre la première requête
-first_request_done = False
-
-# 2. Exécute l'orchestrateur AVANT la première requête
-@app.before_request  # ✅ Remplace @app.before_first_request
-def load_initial_data():
-    """Exécute l'orchestrateur UNIQUEMENT avant la première requête."""
-    global first_request_done
-    if not first_request_done:
-        print("🚀 Chargement initial des données...")
-        script_path = os.path.join(os.path.dirname(__file__), "orchestrator_full.py")
-
-        try:
-            result = subprocess.run(
-                [sys.executable, script_path],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='ignore',
-                timeout=120,
-                cwd=os.path.dirname(__file__)
-            )
-
-            if result.returncode != 0:
-                print(f"❌ Erreur dans l'orchestrateur:")
-                print(f"STDOUT: {result.stdout}")
-                print(f"STDERR: {result.stderr}")
-            else:
-                print(f"✅ Données chargées avec succès !")
-
-            first_request_done = True  # 👈 Empêche les exécutions suivantes
-
-        except subprocess.TimeoutExpired:
-            print("⚠️ Timeout: l'orchestrateur a mis trop de temps (>2min)")
-            first_request_done = True
-        except Exception as e:
-            print(f"❌ Erreur inattendue: {str(e)}")
-            first_request_done = True
+# ========== INITIALISATION DE LA BASE ==========
+init_db()  # Crée les tables
 
 # ========== FONCTIONS DE RÉCUPÉRATION DES DONNÉES ==========
 def get_prices():
@@ -89,7 +49,7 @@ def get_rsi():
         return []
 
 def get_correlations():
-    """Récupère les corrélations avec BTC (sans doublons)."""
+    """Récupère les corrélations avec BTC."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -109,7 +69,7 @@ def get_correlations():
         return []
 
 def get_news_data():
-    """Récupère les news + sentiment pour le dashboard."""
+    """Récupère les news + sentiment."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -130,7 +90,7 @@ def get_news_data():
         return []
 
 def get_news_rsi_correlation():
-    """Récupère les corrélations news/RSI (1 entrée par crypto)."""
+    """Récupère les corrélations news/RSI."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -167,7 +127,6 @@ def dashboard():
 
 @app.route("/api/prices/<symbol>")
 def get_price_history(symbol):
-    """Récupère l'historique des prix pour une crypto (7 derniers jours)."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -189,7 +148,6 @@ def get_price_history(symbol):
 
 @app.route("/api/rsi/<symbol>")
 def get_rsi_history(symbol):
-    """Récupère l'historique du RSI pour une crypto (7 derniers jours)."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -211,7 +169,6 @@ def get_rsi_history(symbol):
 
 @app.route("/api/news_sentiment/<symbol>")
 def get_news_sentiment_history(symbol):
-    """Récupère l'historique du sentiment des news pour une crypto."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -235,7 +192,6 @@ def get_news_sentiment_history(symbol):
 
 @app.route("/api/top_impact_news")
 def get_top_impact_news():
-    """Récupère les 5 news les plus impactantes."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -337,6 +293,28 @@ def refresh_data():
             "message": f"Erreur inattendue: {str(e)}"
         }), 500
 
+# ========== DÉMARRAGE DU SERVEUR ==========
 if __name__ == "__main__":
+    # 👇 EXÉCUTE L'ORCHESTRATEUR AVANT DE DÉMARRER FLASK
+    print("🚀 Chargement initial des données...")
+    script_path = os.path.join(os.path.dirname(__file__), "orchestrator_full.py")
+    result = subprocess.run(
+        [sys.executable, script_path],
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='ignore',
+        timeout=120,
+        cwd=os.path.dirname(__file__)
+    )
+
+    if result.returncode != 0:
+        print(f"❌ Erreur dans l'orchestrateur:")
+        print(f"STDOUT: {result.stdout}")
+        print(f"STDERR: {result.stderr}")
+    else:
+        print(f"✅ Données chargées avec succès !")
+
+    # Démarre Flask
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
