@@ -1,21 +1,8 @@
-import os
+from db_utils import get_db_connection
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
-import sys
-import io
 import time
-from db_utils import get_db_connection, get_db_path  # 👈 Importe la fonction
-
-# Ajoute ça au début de chaque script (après les imports)
-# 👇 LIGNES À AJOUTER
-print(f"📁 [{os.path.basename(__file__)}] Répertoire: {os.getcwd()}")
-print(f"📁 [{os.path.basename(__file__)}] Base: {get_db_path()}")
-print(f"📁 [{os.path.basename(__file__)}] Existe: {os.path.exists(get_db_path())}")
-
-# Compatibilité Windows/UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 CRYPTOS = ["bitcoin", "ethereum", "solana", "aave", "ripple", "vechain"]
 SYMBOLS = ["BTC", "ETH", "SOL", "AAVE", "XRP", "VET"]
@@ -28,38 +15,27 @@ RSS_FEEDS = [
 ]
 
 def parse_rss(url):
-    """Parse un flux RSS avec gestion des erreurs."""
     try:
-        response = requests.get(
-            url,
-            timeout=15,  # ✅ Timeout augmenté
-            headers={'User-Agent': 'Mozilla/5.0'}  # ✅ Évite le blocage anti-bot
-        )
-        response.raise_for_status()  # ✅ Vérifie les erreurs HTTP
+        response = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+        response.raise_for_status()
         root = ET.fromstring(response.content)
         items = []
         for item in root.findall('.//item'):
             items.append({
-                'title': item.find('title').text if item.find('title') is not None else "",
-                'link': item.find('link').text if item.find('link') is not None else "",
-                'pubDate': item.find('pubDate').text if item.find('pubDate') is not None else "",
-                'description': item.find('description').text if item.find('description') is not None else ""
+                'title': item.find('title').text or "",
+                'link': item.find('link').text or "",
+                'pubDate': item.find('pubDate').text or "",
+                'description': item.find('description').text or ""
             })
         return items
     except Exception as e:
-        print(f"⚠️ Erreur lors du parsing de {url}: {e}")
-        return []  # ✅ Retourne une liste vide au lieu de planter
+        print(f"⚠️ Erreur RSS {url}: {e}")
+        return []
 
 def fetch_crypto_news_rss(days=7):
-    conn = get_db_connection()  # ✅ Utilise le chemin persistant
+    conn = get_db_connection()
     cursor = conn.cursor()
 
-    #DEBUG 
-    print(f"📁 Répertoire courant: {os.getcwd()}")
-    print(f"📁 Chemin de la base: {get_db_connection().execute('PRAGMA database_list').fetchall()}")
-    #DEBUG 
-
-    # Création de la table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS crypto_news (
             id TEXT PRIMARY KEY,
@@ -78,27 +54,22 @@ def fetch_crypto_news_rss(days=7):
 
     for feed in RSS_FEEDS:
         try:
-            print(f"📰 Récupération des news depuis {feed['name']}...")
-            parsed_feed = parse_rss(feed["url"])
-            if not parsed_feed:  # ✅ Si le parsing échoue, passe au suivant
+            print(f"📰 Récupération depuis {feed['name']}...")
+            items = parse_rss(feed["url"])
+            if not items:
                 continue
 
-            for entry in parsed_feed:
-                news_symbols = []
-                for symbol in SYMBOLS:
-                    if (symbol.lower() in (entry['title'] or "").lower() or
-                        symbol.lower() in (entry['description'] or "").lower()):
-                        news_symbols.append(symbol)
-
+            for entry in items:
+                news_symbols = [
+                    symbol for symbol in SYMBOLS
+                    if symbol.lower() in (entry['title'] or "").lower()
+                    or symbol.lower() in (entry['description'] or "").lower()
+                ]
                 if not news_symbols:
                     continue
 
-                # Gestion de la date
                 try:
-                    published_at = datetime.strptime(
-                        entry['pubDate'],
-                        '%a, %d %b %Y %H:%M:%S %z'
-                    ).replace(tzinfo=None)
+                    published_at = datetime.strptime(entry['pubDate'], '%a, %d %b %Y %H:%M:%S %z').replace(tzinfo=None)
                 except (ValueError, TypeError):
                     published_at = datetime.now()
 
@@ -112,23 +83,17 @@ def fetch_crypto_news_rss(days=7):
                         (id, symbol, title, source, url, content, published_at)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (
-                        news_id,
-                        symbol,
-                        entry['title'],
-                        feed["name"],
-                        entry['link'],
-                        entry['description'][:2000],
-                        published_at
+                        news_id, symbol, entry['title'], feed['name'],
+                        entry['link'], entry['description'][:2000], published_at
                     ))
                     print(f"✅ News: {entry['title'][:50]}... ({symbol})")
 
         except Exception as e:
-            print(f"⚠️ Erreur avec {feed['name']}: {e}")  # ✅ Ne bloque pas l'orchestration
-            continue
+            print(f"⚠️ Erreur avec {feed['name']}: {e}")
 
     conn.commit()
     conn.close()
-    print("✅ Récupération des news terminée.")
+    print("✅ News récupérées.")
 
 if __name__ == "__main__":
     fetch_crypto_news_rss(days=7)

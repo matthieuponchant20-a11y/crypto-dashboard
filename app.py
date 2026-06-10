@@ -1,19 +1,23 @@
 from flask import Flask, render_template, jsonify
-from datetime import datetime
-import subprocess
 import os
-import sys
-from db_utils import get_db_connection, get_db_path  # 👈 Ajoute get_db_path
+from db_utils import get_db_connection
 from init_db import init_db
+
+# Importe les fonctions des scripts (plus de subprocess !)
+from step_fetch_historical_data import fetch_historical_data
+from step_fetch_crypto_news_rss import fetch_crypto_news_rss
+from step_analyze_news_sentiment import analyze_news_sentiment
+from step_calculate_rsi import calculate_rsi
+from step_calculate_correlations import calculate_correlations
+from step_correlate_news_rsi import correlate_news_rsi
 
 app = Flask(__name__)
 
-# ========== INITIALISATION DE LA BASE ==========
-init_db()  # Crée les tables
+# Variable pour éviter de recharger les données à chaque requête
+first_request_done = False
 
 # ========== FONCTIONS DE RÉCUPÉRATION DES DONNÉES ==========
 def get_prices():
-    """Récupère les derniers prix (1 par crypto)."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -31,7 +35,6 @@ def get_prices():
         return []
 
 def get_rsi():
-    """Récupère les derniers RSI (1 par crypto)."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -49,7 +52,6 @@ def get_rsi():
         return []
 
 def get_correlations():
-    """Récupère les corrélations avec BTC."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -69,7 +71,6 @@ def get_correlations():
         return []
 
 def get_news_data():
-    """Récupère les news + sentiment."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -90,7 +91,6 @@ def get_news_data():
         return []
 
 def get_news_rsi_correlation():
-    """Récupère les corrélations news/RSI."""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -255,131 +255,34 @@ def get_top_impact_news():
 
 @app.route("/refresh")
 def refresh_data():
-    """Relance l'orchestrateur manuellement."""
+    """Rafraîchit manuellement les données."""
     try:
-        script_path = os.path.join(os.path.dirname(__file__), "orchestrator_full.py")
-        result = subprocess.run(
-            [sys.executable, script_path],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='ignore',
-            timeout=60,
-            cwd=os.path.dirname(__file__)
-        )
-
-        if result.returncode == 0:
-            return jsonify({
-                "status": "success",
-                "message": "Données rafraîchies avec succès !",
-                "output": result.stdout
-            })
-        else:
-            return jsonify({
-                "status": "error",
-                "message": f"Erreur dans l'orchestrateur (code {result.returncode})",
-                "stdout": result.stdout,
-                "stderr": result.stderr
-            }), 500
-
-    except subprocess.TimeoutExpired:
-        return jsonify({
-            "status": "error",
-            "message": "Timeout: l'orchestrateur a mis trop de temps (>60s)"
-        }), 500
+        init_db()
+        fetch_historical_data(days=7)
+        fetch_crypto_news_rss(days=7)
+        analyze_news_sentiment()
+        calculate_rsi()
+        calculate_correlations()
+        correlate_news_rsi()
+        return jsonify({"status": "success", "message": "Données rafraîchies !"})
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": f"Erreur inattendue: {str(e)}"
-        }), 500
-
-@app.route("/debug/db")
-def debug_db():
-    """Affiche le contenu de la base pour le débogage (compatible JSON)."""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-
-        # Liste des tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = [table[0] for table in cursor.fetchall()]
-
-        results = {}
-        for table in tables:
-            # Compte les lignes
-            cursor.execute(f"SELECT COUNT(*) FROM {table};")
-            count = cursor.fetchone()[0]
-
-            # Récupère les noms des colonnes
-            cursor.execute(f"PRAGMA table_info({table});")
-            columns = [col[1] for col in cursor.fetchall()]  # Noms des colonnes
-
-            # Échantillon de données (converti en dict)
-            sample = []
-            if count > 0:
-                cursor.execute(f"SELECT * FROM {table} LIMIT 2;")
-                for row in cursor.fetchall():
-                    # Convertit sqlite3.Row en dict
-                    sample.append(dict(zip(columns, row)))
-
-            results[table] = {
-                "count": count,
-                "columns": columns,
-                "sample": sample  # 👈 Maintenant en format JSON
-            }
-
-        conn.close()
-        return jsonify(results)
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/debug/path")
-def debug_path():
-    """Affiche le chemin de la base et son statut pour le débogage."""
-    db_path = get_db_path()
-    return jsonify({
-        "db_path": db_path,  # Chemin absolu de la base
-        "cwd": os.getcwd(),  # Répertoire courant du processus
-        "db_exists": os.path.exists(db_path),  # La base existe-t-elle ?
-        "db_size": os.path.getsize(db_path) if os.path.exists(db_path) else 0  # Taille en octets
-    })
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # ========== DÉMARRAGE DU SERVEUR ==========
 if __name__ == "__main__":
-    # 👇 FORCE LE RÉPERTOIRE DE TRAVAIL
-    # os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    os.environ["CRYPTO_DB_PATH"] = get_db_path()  # 👈 Chemin absolu
-    print(f"📁 Répertoire forcé: {os.getcwd()}")
-
-    # Exécute l'orchestrateur
-    print("🚀 Exécution de l'orchestrateur...")
-    script_path = os.path.join(os.path.dirname(__file__), "orchestrator_full.py")
-
-    result = subprocess.run(
-        [sys.executable, script_path],
-        capture_output=True,
-        text=True,
-        encoding='utf-8',
-        errors='ignore',
-        timeout=120,
-        cwd=os.path.dirname(__file__)  # 👈 Répertoire du projet
-    )
-
-    # 👇 AFFICHE LES LOGS COMPLETS
-    print("\n=== SORTIE DE L'ORCHESTRATEUR ===")
-    print(result.stdout)
-    if result.stderr:
-        print("\n=== ERREURS DE L'ORCHESTRATEUR ===")
-        print(result.stderr)
-
-    # Vérifie la base après exécution
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    for table in ["prices", "indicators", "crypto_news"]:
-        cursor.execute(f"SELECT COUNT(*) FROM {table};")
-        print(f"📊 {table}: {cursor.fetchone()[0]} lignes")
-    conn.close()
+    # 👇 EXÉCUTE LE PEUPLEMENT AVANT DE DÉMARRER FLASK
+    print("🚀 Chargement des données...")
+    try:
+        init_db()
+        fetch_historical_data(days=7)
+        fetch_crypto_news_rss(days=7)
+        analyze_news_sentiment()
+        calculate_rsi()
+        calculate_correlations()
+        correlate_news_rsi()
+        print("✅ Données chargées avec succès !")
+    except Exception as e:
+        print(f"❌ Erreur lors du chargement: {e}")
 
     # Démarre Flask
     port = int(os.environ.get("PORT", 5000))

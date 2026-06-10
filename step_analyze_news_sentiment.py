@@ -1,47 +1,25 @@
-import os
-
+from db_utils import get_db_connection
 from textblob import TextBlob
 from datetime import datetime
-# -*- coding: utf-8 -*-
-import sys
-import io
-from db_utils import get_db_connection, get_db_path  # 👈 Importe la fonction
-
-# Ajoute ça au début de chaque script (après les imports)
-# 👇 LIGNES À AJOUTER
-print(f"📁 [{os.path.basename(__file__)}] Répertoire: {os.getcwd()}")
-print(f"📁 [{os.path.basename(__file__)}] Base: {get_db_path()}")
-print(f"📁 [{os.path.basename(__file__)}] Existe: {os.path.exists(get_db_path())}")
-
-# Compatibilité Windows/UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 def analyze_news_sentiment():
-    """Analyse le sentiment des news et calcule un score d'impact par crypto."""
-    conn = get_db_connection()  # ✅ Utilise le chemin persistant
+    """Analyse le sentiment des news."""
+    conn = get_db_connection()
     cursor = conn.cursor()
 
-    #DEBUG 
-    print(f"📁 Répertoire courant: {os.getcwd()}")
-    print(f"📁 Chemin de la base: {get_db_connection().execute('PRAGMA database_list').fetchall()}")
-    #DEBUG 
-
-    # Crée la table des sentiments
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS news_sentiment (
             id TEXT PRIMARY KEY,
             news_id TEXT NOT NULL,
             symbol TEXT NOT NULL,
-            polarity REAL NOT NULL,  
-            subjectivity REAL NOT NULL,  
-            impact_score REAL,  
+            polarity REAL NOT NULL,
+            subjectivity REAL NOT NULL,
+            impact_score REAL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (news_id) REFERENCES crypto_news(id)
+            FOREIGN KEY(news_id) REFERENCES crypto_news(id)
         )
     """)
 
-    # Récupère les news non analysées
     cursor.execute("""
         SELECT id, symbol, title, content
         FROM crypto_news
@@ -50,7 +28,7 @@ def analyze_news_sentiment():
     news_list = cursor.fetchall()
 
     if not news_list:
-        print("⚠️ Aucune nouvelle news à analyser.")
+        print("⚠️ Aucune news à analyser.")
         conn.close()
         return
 
@@ -59,9 +37,6 @@ def analyze_news_sentiment():
         analysis = TextBlob(text)
         polarity = analysis.sentiment.polarity
         subjectivity = analysis.sentiment.subjectivity
-
-        # Calcule un score d'impact (0-100)
-        # Plus la news est extrême (polarity proche de ±1) ET subjective, plus l'impact est fort
         impact_score = min(100, abs(polarity) * 100 * (1 + subjectivity))
 
         cursor.execute(

@@ -1,27 +1,12 @@
-import os
+from db_utils import get_db_connection
 import pandas as pd
-from datetime import datetime, timedelta  # 👈 L'import manquant est ici
-# -*- coding: utf-8 -*-
-import sys
-import io
-from db_utils import get_db_connection, get_db_path  # 👈 Importe la fonction
-
-# Ajoute ça au début de chaque script (après les imports)
-# 👇 LIGNES À AJOUTER
-print(f"📁 [{os.path.basename(__file__)}] Répertoire: {os.getcwd()}")
-print(f"📁 [{os.path.basename(__file__)}] Base: {get_db_path()}")
-print(f"📁 [{os.path.basename(__file__)}] Existe: {os.path.exists(get_db_path())}")
-
-# Compatibilité Windows/UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+from datetime import datetime, timedelta
 
 def calculate_correlations(timeframe="7D"):
-    """Calcule les corrélations de chaque crypto avec BTC."""
-    conn = get_db_connection()  # ✅ Utilise le chemin persistant
+    """Calcule les corrélations avec BTC."""
+    conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Crée la table des corrélations
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS correlations (
             id TEXT PRIMARY KEY,
@@ -36,7 +21,6 @@ def calculate_correlations(timeframe="7D"):
     symbols = ["BTC", "ETH", "SOL", "AAVE", "XRP", "VET"]
     start_date = (datetime.now() - timedelta(days=int(timeframe[:-1]))).strftime('%Y-%m-%d')
 
-    # Récupère les données
     query = f"""
         SELECT symbol, price, timestamp
         FROM prices
@@ -47,14 +31,12 @@ def calculate_correlations(timeframe="7D"):
     df = pd.read_sql(query, conn, params=[*symbols, start_date])
 
     if df.empty:
-        print("❌ Pas assez de données. Vérifie que tu as bien exécuté step_fetch_historical_data.py")
+        print("❌ Pas assez de données pour les corrélations.")
         conn.close()
         return
 
-    # Pivote les données
     pivot = df.pivot(index="timestamp", columns="symbol", values="price")
 
-    # Calcule les corrélations avec BTC
     for symbol in symbols:
         if symbol == "BTC":
             continue
@@ -64,7 +46,7 @@ def calculate_correlations(timeframe="7D"):
                 "INSERT OR REPLACE INTO correlations (id, symbol1, symbol2, correlation, timeframe) VALUES (?, ?, ?, ?, ?)",
                 (f"{symbol}-BTC-{timeframe}-{datetime.now().strftime('%Y%m%d%H%M%S%f')}", symbol, "BTC", corr, timeframe)
             )
-            print(f"🔗 Corrélation {symbol}/BTC ({timeframe}): {corr:.2f}")
+            print(f"🔗 Corrélation {symbol}/BTC: {corr:.2f}")
 
     conn.commit()
     conn.close()

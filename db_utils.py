@@ -1,16 +1,13 @@
 import sqlite3
 import os
 
-def get_db_path():
-    """Retourne le chemin ABSOLU de la base."""
-    return os.environ.get("CRYPTO_DB_PATH", os.path.join(os.path.dirname(__file__), "crypto.db"))
+# ✅ Chemin RELATIF au projet (persistant sur Render)
+DB_PATH = "crypto.db"
 
 def get_db_connection():
-    """Retourne une connexion à la base."""
-    db_path = get_db_path()
-    # Crée le fichier s'il n'existe pas
-    if not os.path.exists(db_path):
-        open(db_path, 'a').close()
-    conn = sqlite3.connect(db_path)
+    """Retourne une connexion à la base de données."""
+    if not os.path.exists(DB_PATH):
+        open(DB_PATH, 'a').close()  # Crée le fichier s'il n'existe pas
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn

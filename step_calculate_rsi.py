@@ -1,34 +1,14 @@
-import os
-from db_utils import get_db_connection, get_db_path  # 👈 Importe la fonction
+from db_utils import get_db_connection
+from indicators import rsi
 import pandas as pd
 import numpy as np
-from indicators import rsi
 from datetime import datetime
-# -*- coding: utf-8 -*-
-import sys
-import io
-
-# Ajoute ça au début de chaque script (après les imports)
-# 👇 LIGNES À AJOUTER
-print(f"📁 [{os.path.basename(__file__)}] Répertoire: {os.getcwd()}")
-print(f"📁 [{os.path.basename(__file__)}] Base: {get_db_path()}")
-print(f"📁 [{os.path.basename(__file__)}] Existe: {os.path.exists(get_db_path())}")
-
-# Compatibilité Windows/UTF-8
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 def calculate_rsi(window=14):
     """Calcule le RSI pour toutes les cryptos."""
-    conn = get_db_connection()  # ✅ Utilise le chemin persistant
+    conn = get_db_connection()
     cursor = conn.cursor()
 
-    #DEBUG 
-    print(f"📁 Répertoire courant: {os.getcwd()}")
-    print(f"📁 Chemin de la base: {get_db_connection().execute('PRAGMA database_list').fetchall()}")
-    #DEBUG 
-
-    # Crée la table des indicateurs si elle n'existe pas
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS indicators (
             id TEXT PRIMARY KEY,
@@ -38,30 +18,22 @@ def calculate_rsi(window=14):
         )
     """)
 
-    # Récupère les données pour chaque crypto
     for symbol in ["BTC", "ETH", "SOL", "AAVE", "XRP", "VET"]:
-        query = f"""
-            SELECT price, timestamp
-            FROM prices
-            WHERE symbol = '{symbol}'
-            ORDER BY timestamp
-        """
-        df = pd.read_sql(query, conn)
+        cursor.execute(f"SELECT price, timestamp FROM prices WHERE symbol = '{symbol}' ORDER BY timestamp")
+        df = pd.read_sql(f"SELECT price, timestamp FROM prices WHERE symbol = '{symbol}' ORDER BY timestamp", conn)
         if len(df) < window:
-            print(f"⚠️ Pas assez de données pour {symbol} (nécessite {window} points).")
+            print(f"⚠️ Pas assez de données pour {symbol}.")
             continue
 
-        # Calcule le RSI
         prices_array = np.array(df["price"])
-        rsi_values = rsi(prices_array, period=14)  # 👈 Même résultat, sans dépendance
+        rsi_values = rsi(prices_array, period=14)
         df["RSI"] = rsi_values
         last_rsi = df["RSI"].iloc[-1]
         last_timestamp = df["timestamp"].iloc[-1]
 
-        # Sauvegarde en base
         cursor.execute(
             "INSERT OR REPLACE INTO indicators (id, symbol, rsi, timestamp) VALUES (?, ?, ?, ?)",
-            (f"{symbol}-{last_timestamp.replace(' ', '').replace(':', '')}-{datetime.now().strftime('%S')}", symbol, last_rsi, last_timestamp)
+            (f"{symbol}-{last_timestamp.replace(' ', '').replace(':', '')}", symbol, last_rsi, last_timestamp)
         )
         print(f"📊 RSI {symbol}: {last_rsi:.2f} (à {last_timestamp})")
 
